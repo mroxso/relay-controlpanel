@@ -16,6 +16,7 @@ interface RelayInfo {
     supported_nips?: number[]
     software?: string
     version?: string
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     [key: string]: any
 }
 
@@ -95,7 +96,7 @@ export default function Connector() {
 
             // Redirect to dashboard
             router.push("/dashboard")
-        } catch (err: any) {
+        } catch (err: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
             setError(err.message || "Invalid relay URL format")
             setIsLoading(false)
         }

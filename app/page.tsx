@@ -1,5 +1,4 @@
 import Link from "next/link"
-import Image from "next/image"
 import { ArrowRight, Shield, Users, FileText, Settings, Server, Lock } from "lucide-react"
 import { Button } from "@/components/ui/button"
 
@@ -101,7 +100,7 @@ export default function LandingPage() {
                   <Settings className="h-5 w-5 text-primary" />
                 </div>
                 <h3 className="text-xl font-bold">Relay Configuration</h3>
-                <p className="text-muted-foreground">Easily update your relay's name, description, and icon.</p>
+                <p className="text-muted-foreground">Easily update your relay&apos;s name, description, and icon.</p>
               </div>
               <div className="rounded-lg border bg-card p-6 shadow-sm hover:shadow-md transition-shadow">
                 <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
@@ -160,7 +159,7 @@ export default function LandingPage() {
                 <div className="space-y-2">
                   <h3 className="text-xl font-bold">JSON-RPC Style API</h3>
                   <p className="text-muted-foreground">
-                    Simple request-response protocol over HTTP on the same URI as your relay's websocket.
+                    Simple request-response protocol over HTTP on the same URI as your relay&apos;s websocket.
                   </p>
                 </div>
                 <div className="space-y-2">
