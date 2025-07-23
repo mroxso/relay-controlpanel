@@ -54,6 +54,16 @@ export default function DashboardPage() {
       // Get user's public key
       const userPubkey = await window.nostr.getPublicKey()
 
+      // Create the request payload
+      const requestPayload = JSON.stringify({ method, params })
+      
+      // Calculate SHA256 hash of the payload
+      const encoder = new TextEncoder()
+      const data = encoder.encode(requestPayload)
+      const hashBuffer = await crypto.subtle.digest('SHA-256', data)
+      const hashArray = Array.from(new Uint8Array(hashBuffer))
+      const payloadHash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
+
       // Create NIP-98 authorization event
       const authEvent = {
         kind: 27235,
@@ -62,7 +72,7 @@ export default function DashboardPage() {
         tags: [
           ["u", relayHttp],
           ["method", "POST"],
-          ["payload", JSON.stringify({ method, params })]
+          ["payload", payloadHash]
         ],
         content: ""
       }
@@ -77,7 +87,7 @@ export default function DashboardPage() {
           'Content-Type': 'application/nostr+json+rpc',
           'Authorization': `Nostr ${btoa(JSON.stringify(signedAuthEvent))}`
         },
-        body: JSON.stringify({ method, params })
+        body: requestPayload
       })
 
       if (!response.ok) {
