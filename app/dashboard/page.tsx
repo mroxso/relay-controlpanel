@@ -2,28 +2,25 @@
 
 import { useState, useEffect, useCallback } from "react"
 import { useRouter } from "next/navigation"
-import Link from "next/link"
 import {
   Server,
-  Settings,
   Shield,
-  Home,
-  Menu,
   Ban,
   CheckCircle,
   UserPlus,
+  AlertCircle,
+  RefreshCw,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Input } from "@/components/ui/input"
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 // Import the package
 import NDK from "@nostr-dev-kit/ndk";
 
 export default function DashboardPage() {
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false)
   const [relayUrl, setRelayUrl] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const router = useRouter()
@@ -217,243 +214,258 @@ export default function DashboardPage() {
 
   // Display loading state while checking localStorage
   if (isLoading) {
-    return <div className="flex min-h-screen items-center justify-center">Loading...</div>
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <div className="text-center">
+          <RefreshCw className="h-8 w-8 animate-spin mx-auto mb-4" />
+          <p className="text-lg">Loading...</p>
+        </div>
+      </div>
+    )
   }
 
   // Get the relay domain from the URL for display
   const relayDomain = relayUrl ? new URL(relayUrl).host : "my-relay.com"
 
-  const sidebar = (
-    <div className="flex h-full w-64 flex-col bg-gray-50 dark:bg-gray-900">
-      <div className="flex h-14 items-center border-b px-4">
-        <Server className="mr-2 h-6 w-6" />
-        <span className="font-semibold">Relay Control</span>
-      </div>
-      <nav className="flex-1 space-y-2 p-4">
-        <Link 
-          href="/" 
-          className="flex items-center space-x-2 rounded-lg px-3 py-2 text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"
-        >
-          <Home className="h-4 w-4" />
-          <span>Home</span>
-        </Link>
-        <div className="flex items-center space-x-2 rounded-lg bg-gray-100 px-3 py-2 text-gray-900 dark:bg-gray-800 dark:text-gray-100">
-          <Settings className="h-4 w-4" />
-          <span>Dashboard</span>
-        </div>
-      </nav>
-      <div className="border-t p-4">
-        <div className="text-sm text-gray-500 dark:text-gray-400">
-          Managing: {relayDomain}
-        </div>
-      </div>
-    </div>
-  )
-
   return (
-    <div className="flex h-screen">
-      {/* Desktop Sidebar */}
-      <div className="hidden md:block">
-        {sidebar}
+    <div className="min-h-screen bg-background">
+      {/* Header */}
+      <div className="bg-card border-b">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-16">
+            <div className="flex items-center space-x-3">
+              <Server className="h-8 w-8" />
+              <div>
+                <h1 className="text-xl font-bold">
+                  Relay Control Panel
+                </h1>
+                <p className="text-sm text-muted-foreground">
+                  Managing: {relayDomain}
+                </p>
+              </div>
+            </div>
+            <Button
+              onClick={() => {
+                loadAllowedPubkeys()
+                loadBannedPubkeys()
+              }}
+              variant="outline"
+              size="sm"
+              disabled={isOperating}
+              className="flex items-center space-x-2"
+            >
+              <RefreshCw className={`h-4 w-4 ${isOperating ? 'animate-spin' : ''}`} />
+              <span className="hidden sm:inline">Refresh</span>
+            </Button>
+          </div>
+        </div>
       </div>
-
-      {/* Mobile Sidebar */}
-      <Sheet open={isSidebarOpen} onOpenChange={setIsSidebarOpen}>
-        <SheetContent side="left" className="p-0 w-64">
-          {sidebar}
-        </SheetContent>
-      </Sheet>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Header */}
-        <header className="flex h-14 items-center border-b bg-white px-4 dark:bg-gray-900">
-          <Sheet>
-            <SheetTrigger asChild>
-              <Button variant="ghost" size="icon" className="md:hidden">
-                <Menu className="h-6 w-6" />
-              </Button>
-            </SheetTrigger>
-          </Sheet>
-          <h1 className="ml-4 text-xl font-semibold md:ml-0">Relay Management Dashboard</h1>
-        </header>
-
-        {/* Main Content Area */}
-        <main className="flex-1 overflow-auto p-6">
-          {/* Status Messages */}
-          {error && (
-            <div className="mb-4 rounded-lg bg-red-50 border border-red-200 p-4 text-red-700 dark:bg-red-900/20 dark:border-red-800 dark:text-red-300">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Status Messages */}
+        {error && (
+          <Alert className="mb-6" variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
               {error}
-            </div>
-          )}
-          
-          {success && (
-            <div className="mb-4 rounded-lg bg-green-50 border border-green-200 p-4 text-green-700 dark:bg-green-900/20 dark:border-green-800 dark:text-green-300">
+            </AlertDescription>
+          </Alert>
+        )}
+        
+        {success && (
+          <Alert className="mb-6">
+            <CheckCircle className="h-4 w-4" />
+            <AlertDescription>
               {success}
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {/* Management Card - Always visible at top */}
+        <Card className="mb-8">
+          <CardHeader>
+            <CardTitle className="flex items-center space-x-2">
+              <Shield className="h-5 w-5" />
+              <span>Pubkey Management</span>
+            </CardTitle>
+            <CardDescription>
+              Allow or ban public keys from interacting with your relay
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <label htmlFor="pubkey" className="text-sm font-medium">
+                  Public Key (64-character hex)
+                </label>
+                <Input
+                  id="pubkey"
+                  placeholder="e.g., 3bf0c63fcb93463407af97a5e5ee64fa883d107ef9e558472c4eb9aaaefa459d"
+                  value={newPubkey}
+                  onChange={(e) => setNewPubkey(e.target.value)}
+                  className="font-mono text-sm"
+                />
+                {newPubkey && !isValidPubkey(newPubkey) && (
+                  <p className="text-sm text-destructive">Invalid pubkey format</p>
+                )}
+              </div>
+              
+              <div className="space-y-2">
+                <label htmlFor="reason" className="text-sm font-medium">
+                  Reason (optional)
+                </label>
+                <Input
+                  id="reason"
+                  placeholder="Optional reason for this action"
+                  value={reason}
+                  onChange={(e) => setReason(e.target.value)}
+                />
+              </div>
             </div>
-          )}
+            
+            <div className="flex flex-col sm:flex-row gap-2">
+              <Button
+                onClick={() => allowPubkey(newPubkey, reason || undefined)}
+                disabled={!isValidPubkey(newPubkey) || isOperating}
+                className="flex items-center justify-center space-x-2 flex-1"
+              >
+                <UserPlus className="h-4 w-4" />
+                <span>Allow Pubkey</span>
+              </Button>
+              
+              <Button
+                onClick={() => banPubkey(newPubkey, reason || undefined)}
+                disabled={!isValidPubkey(newPubkey) || isOperating}
+                variant="destructive"
+                className="flex items-center justify-center space-x-2 flex-1"
+              >
+                <Ban className="h-4 w-4" />
+                <span>Ban Pubkey</span>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
 
-          <Tabs defaultValue="management" className="space-y-6">
-            <TabsList>
-              <TabsTrigger value="management">Pubkey Management</TabsTrigger>
-              <TabsTrigger value="allowed">Allowed Pubkeys</TabsTrigger>
-              <TabsTrigger value="banned">Banned Pubkeys</TabsTrigger>
-            </TabsList>
+        {/* Tabs for listing pubkeys */}
+        <Tabs defaultValue="allowed" className="space-y-6">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="allowed" className="flex items-center space-x-2">
+              <CheckCircle className="h-4 w-4" />
+              <span>Allowed ({allowedPubkeys.length})</span>
+            </TabsTrigger>
+            <TabsTrigger value="banned" className="flex items-center space-x-2">
+              <Ban className="h-4 w-4" />
+              <span>Banned ({bannedPubkeys.length})</span>
+            </TabsTrigger>
+          </TabsList>
 
-            {/* Pubkey Management Tab */}
-            <TabsContent value="management" className="space-y-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center space-x-2">
-                    <Shield className="h-5 w-5" />
-                    <span>Pubkey Management</span>
-                  </CardTitle>
-                  <CardDescription>
-                    Allow or ban public keys from interacting with your relay
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-2">
-                    <label htmlFor="pubkey" className="text-sm font-medium">
-                      Public Key (64-character hex)
-                    </label>
-                    <Input
-                      id="pubkey"
-                      placeholder="e.g., 3bf0c63fcb93463407af97a5e5ee64fa883d107ef9e558472c4eb9aaaefa459d"
-                      value={newPubkey}
-                      onChange={(e) => setNewPubkey(e.target.value)}
-                      className="font-mono text-sm"
-                    />
-                    {newPubkey && !isValidPubkey(newPubkey) && (
-                      <p className="text-sm text-red-500">Invalid pubkey format</p>
-                    )}
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <label htmlFor="reason" className="text-sm font-medium">
-                      Reason (optional)
-                    </label>
-                    <Input
-                      id="reason"
-                      placeholder="Optional reason for this action"
-                      value={reason}
-                      onChange={(e) => setReason(e.target.value)}
-                    />
-                  </div>
-                  
-                  <div className="flex space-x-2">
-                    <Button
-                      onClick={() => allowPubkey(newPubkey, reason || undefined)}
-                      disabled={!isValidPubkey(newPubkey) || isOperating}
-                      className="flex items-center space-x-2"
-                    >
-                      <UserPlus className="h-4 w-4" />
-                      <span>Allow Pubkey</span>
-                    </Button>
-                    
-                    <Button
-                      onClick={() => banPubkey(newPubkey, reason || undefined)}
-                      disabled={!isValidPubkey(newPubkey) || isOperating}
-                      variant="destructive"
-                      className="flex items-center space-x-2"
-                    >
-                      <Ban className="h-4 w-4" />
-                      <span>Ban Pubkey</span>
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            {/* Allowed Pubkeys Tab */}
-            <TabsContent value="allowed" className="space-y-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center space-x-2">
-                    <CheckCircle className="h-5 w-5 text-green-500" />
-                    <span>Allowed Pubkeys ({allowedPubkeys.length})</span>
-                  </CardTitle>
-                  <CardDescription>
-                    Public keys that are explicitly allowed on this relay
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <ScrollArea className="h-96">
-                    {allowedPubkeys.length === 0 ? (
-                      <p className="text-gray-500 text-center py-8">No allowed pubkeys configured</p>
-                    ) : (
-                      <div className="space-y-2">
-                        {allowedPubkeys.map((item, index) => (
-                          <div key={index} className="flex items-center justify-between p-3 border rounded-lg">
-                            <div className="flex-1 min-w-0">
-                              <div className="font-mono text-sm break-all">{item.pubkey}</div>
-                              {item.reason && (
-                                <div className="text-sm text-gray-500 mt-1">{item.reason}</div>
-                              )}
+          {/* Allowed Pubkeys Tab */}
+          <TabsContent value="allowed">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center space-x-2">
+                  <CheckCircle className="h-5 w-5" />
+                  <span>Allowed Pubkeys</span>
+                </CardTitle>
+                <CardDescription>
+                  Public keys that are explicitly allowed on this relay
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ScrollArea className="h-96">
+                  {allowedPubkeys.length === 0 ? (
+                    <div className="text-center py-12">
+                      <CheckCircle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                      <p className="text-muted-foreground text-lg">No allowed pubkeys configured</p>
+                      <p className="text-muted-foreground text-sm">Add a pubkey above to get started</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {allowedPubkeys.map((item, index) => (
+                        <div key={index} className="flex items-center justify-between p-4 border rounded-lg hover:bg-accent transition-colors">
+                          <div className="flex-1 min-w-0 mr-4">
+                            <div className="font-mono text-sm break-all">
+                              {item.pubkey}
                             </div>
-                            <Button
-                              onClick={() => banPubkey(item.pubkey, "Moved to banned list")}
-                              disabled={isOperating}
-                              variant="outline"
-                              size="sm"
-                              className="ml-2"
-                            >
-                              <Ban className="h-4 w-4" />
-                            </Button>
+                            {item.reason && (
+                              <div className="text-sm text-muted-foreground mt-1">
+                                {item.reason}
+                              </div>
+                            )}
                           </div>
-                        ))}
-                      </div>
-                    )}
-                  </ScrollArea>
-                </CardContent>
-              </Card>
-            </TabsContent>
+                          <Button
+                            onClick={() => banPubkey(item.pubkey, "Moved to banned list")}
+                            disabled={isOperating}
+                            variant="outline"
+                            size="sm"
+                            className="shrink-0"
+                          >
+                            <Ban className="h-4 w-4" />
+                            <span className="hidden sm:inline ml-2">Ban</span>
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </ScrollArea>
+              </CardContent>
+            </Card>
+          </TabsContent>
 
-            {/* Banned Pubkeys Tab */}
-            <TabsContent value="banned" className="space-y-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center space-x-2">
-                    <Ban className="h-5 w-5 text-red-500" />
-                    <span>Banned Pubkeys ({bannedPubkeys.length})</span>
-                  </CardTitle>
-                  <CardDescription>
-                    Public keys that are banned from this relay
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <ScrollArea className="h-96">
-                    {bannedPubkeys.length === 0 ? (
-                      <p className="text-gray-500 text-center py-8">No banned pubkeys</p>
-                    ) : (
-                      <div className="space-y-2">
-                        {bannedPubkeys.map((item, index) => (
-                          <div key={index} className="flex items-center justify-between p-3 border rounded-lg">
-                            <div className="flex-1 min-w-0">
-                              <div className="font-mono text-sm break-all">{item.pubkey}</div>
-                              {item.reason && (
-                                <div className="text-sm text-gray-500 mt-1">{item.reason}</div>
-                              )}
+          {/* Banned Pubkeys Tab */}
+          <TabsContent value="banned">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center space-x-2">
+                  <Ban className="h-5 w-5" />
+                  <span>Banned Pubkeys</span>
+                </CardTitle>
+                <CardDescription>
+                  Public keys that are banned from this relay
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ScrollArea className="h-96">
+                  {bannedPubkeys.length === 0 ? (
+                    <div className="text-center py-12">
+                      <Shield className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                      <p className="text-muted-foreground text-lg">No banned pubkeys</p>
+                      <p className="text-muted-foreground text-sm">Your relay is open to everyone</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {bannedPubkeys.map((item, index) => (
+                        <div key={index} className="flex items-center justify-between p-4 border rounded-lg hover:bg-accent transition-colors">
+                          <div className="flex-1 min-w-0 mr-4">
+                            <div className="font-mono text-sm break-all">
+                              {item.pubkey}
                             </div>
-                            <Button
-                              onClick={() => allowPubkey(item.pubkey, "Moved to allowed list")}
-                              disabled={isOperating}
-                              variant="outline"
-                              size="sm"
-                              className="ml-2"
-                            >
-                              <UserPlus className="h-4 w-4" />
-                            </Button>
+                            {item.reason && (
+                              <div className="text-sm text-muted-foreground mt-1">
+                                {item.reason}
+                              </div>
+                            )}
                           </div>
-                        ))}
-                      </div>
-                    )}
-                  </ScrollArea>
-                </CardContent>
-              </Card>
-            </TabsContent>
-          </Tabs>
-        </main>
+                          <Button
+                            onClick={() => allowPubkey(item.pubkey, "Moved to allowed list")}
+                            disabled={isOperating}
+                            variant="outline"
+                            size="sm"
+                            className="shrink-0"
+                          >
+                            <UserPlus className="h-4 w-4" />
+                            <span className="hidden sm:inline ml-2">Allow</span>
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </ScrollArea>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   )
