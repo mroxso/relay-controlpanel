@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import {
   Server,
@@ -20,6 +20,8 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 // Import the package
 import NDK from "@nostr-dev-kit/ndk";
+import { useMultipleUserMetadata } from "@/lib/use-user-metadata"
+import { UserDisplayWithReason } from "@/components/user-display"
 
 export default function DashboardPage() {
   const [relayUrl, setRelayUrl] = useState<string | null>(null)
@@ -34,6 +36,14 @@ export default function DashboardPage() {
   const [isOperating, setIsOperating] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
+  const [ndk, setNdk] = useState<NDK | null>(null)
+
+  // Fetch metadata for all pubkeys using improved hook
+  const allPubkeys = useMemo(() => 
+    [...allowedPubkeys.map(item => item.pubkey), ...bannedPubkeys.map(item => item.pubkey)], 
+    [allowedPubkeys, bannedPubkeys]
+  )
+  const metadataResults = useMultipleUserMetadata(allPubkeys, ndk)
 
   // Relay Management Functions according to NIP-86
   const makeRelayRequest = useCallback(async (method: string, params: string[]): Promise<unknown> => {
@@ -205,14 +215,15 @@ export default function DashboardPage() {
       } else {
 
         // Create a new NDK instance with explicit relays
-        const ndk = new NDK({
+        const ndkInstance = new NDK({
           explicitRelayUrls: [savedRelayUrl],
         });
 
         // Now connect to specified relays
-        await ndk.connect();
+        await ndkInstance.connect();
 
         setRelayUrl(savedRelayUrl)
+        setNdk(ndkInstance)
         setIsLoading(false)
       }
     }
@@ -398,30 +409,31 @@ export default function DashboardPage() {
                     </div>
                   ) : (
                     <div className="space-y-3">
-                      {allowedPubkeys.map((item, index) => (
-                        <div key={index} className="flex items-center justify-between p-4 border rounded-lg hover:bg-accent transition-colors">
-                          <div className="flex-1 min-w-0 mr-4">
-                            <div className="font-mono text-sm break-all">
-                              {item.pubkey}
+                      {allowedPubkeys.map((item, index) => {
+                        const metadataResult = metadataResults.get(item.pubkey)
+                        return (
+                          <div key={index} className="flex items-center justify-between p-4 border rounded-lg hover:bg-accent transition-colors">
+                            <div className="flex-1 min-w-0 mr-4">
+                              <UserDisplayWithReason
+                                pubkey={item.pubkey}
+                                metadata={metadataResult?.metadata || null}
+                                isLoading={metadataResult?.isLoading || false}
+                                reason={item.reason}
+                              />
                             </div>
-                            {item.reason && (
-                              <div className="text-sm text-muted-foreground mt-1">
-                                {item.reason}
-                              </div>
-                            )}
+                            <Button
+                              onClick={() => banPubkey(item.pubkey, "Moved to banned list")}
+                              disabled={isOperating}
+                              variant="outline"
+                              size="sm"
+                              className="shrink-0"
+                            >
+                              <Ban className="h-4 w-4" />
+                              <span className="hidden sm:inline ml-2">Ban</span>
+                            </Button>
                           </div>
-                          <Button
-                            onClick={() => banPubkey(item.pubkey, "Moved to banned list")}
-                            disabled={isOperating}
-                            variant="outline"
-                            size="sm"
-                            className="shrink-0"
-                          >
-                            <Ban className="h-4 w-4" />
-                            <span className="hidden sm:inline ml-2">Ban</span>
-                          </Button>
-                        </div>
-                      ))}
+                        )
+                      })}
                     </div>
                   )}
                 </ScrollArea>
@@ -451,30 +463,31 @@ export default function DashboardPage() {
                     </div>
                   ) : (
                     <div className="space-y-3">
-                      {bannedPubkeys.map((item, index) => (
-                        <div key={index} className="flex items-center justify-between p-4 border rounded-lg hover:bg-accent transition-colors">
-                          <div className="flex-1 min-w-0 mr-4">
-                            <div className="font-mono text-sm break-all">
-                              {item.pubkey}
+                      {bannedPubkeys.map((item, index) => {
+                        const metadataResult = metadataResults.get(item.pubkey)
+                        return (
+                          <div key={index} className="flex items-center justify-between p-4 border rounded-lg hover:bg-accent transition-colors">
+                            <div className="flex-1 min-w-0 mr-4">
+                              <UserDisplayWithReason
+                                pubkey={item.pubkey}
+                                metadata={metadataResult?.metadata || null}
+                                isLoading={metadataResult?.isLoading || false}
+                                reason={item.reason}
+                              />
                             </div>
-                            {item.reason && (
-                              <div className="text-sm text-muted-foreground mt-1">
-                                {item.reason}
-                              </div>
-                            )}
+                            <Button
+                              onClick={() => allowPubkey(item.pubkey, "Moved to allowed list")}
+                              disabled={isOperating}
+                              variant="outline"
+                              size="sm"
+                              className="shrink-0"
+                            >
+                              <UserPlus className="h-4 w-4" />
+                              <span className="hidden sm:inline ml-2">Allow</span>
+                            </Button>
                           </div>
-                          <Button
-                            onClick={() => allowPubkey(item.pubkey, "Moved to allowed list")}
-                            disabled={isOperating}
-                            variant="outline"
-                            size="sm"
-                            className="shrink-0"
-                          >
-                            <UserPlus className="h-4 w-4" />
-                            <span className="hidden sm:inline ml-2">Allow</span>
-                          </Button>
-                        </div>
-                      ))}
+                        )
+                      })}
                     </div>
                   )}
                 </ScrollArea>
