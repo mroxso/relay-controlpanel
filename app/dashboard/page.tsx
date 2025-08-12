@@ -10,6 +10,7 @@ import {
   UserPlus,
   AlertCircle,
   RefreshCw,
+  LogOut,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -187,6 +188,12 @@ export default function DashboardPage() {
     }
   }, [error, success])
 
+  // Logout function
+  const handleLogout = useCallback(() => {
+    localStorage.removeItem("relayUrl")
+    router.push("/setup")
+  }, [router])
+
   useEffect(() => {
     const checkRelay = async () => {
       // Check if relay URL is set in localStorage
@@ -252,10 +259,19 @@ export default function DashboardPage() {
               variant="outline"
               size="sm"
               disabled={isOperating}
-              className="flex items-center space-x-2"
+              className="flex items-center space-x-2 mr-2"
             >
               <RefreshCw className={`h-4 w-4 ${isOperating ? 'animate-spin' : ''}`} />
               <span className="hidden sm:inline">Refresh</span>
+            </Button>
+            <Button
+              onClick={handleLogout}
+              variant="outline"
+              size="sm"
+              className="flex items-center space-x-2"
+            >
+              <LogOut className="h-4 w-4" />
+              <span className="hidden sm:inline">Switch Relay</span>
             </Button>
           </div>
         </div>
